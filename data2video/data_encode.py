@@ -1,6 +1,7 @@
 from PIL import ImageDraw, Image
 from typing import BinaryIO
 import logging
+import functools as f
 
 def encode_color(value: int) -> tuple[int, int, int]:
     """
@@ -51,8 +52,6 @@ def create_video_frame(block_count: tuple[int, int],
     logging.debug(f"data=[{repr(data)}]")
 
     for (index, (x, y)) in _generate_frame_filling_list(bhoriz, bvert):
-        logging.debug(f"encoding byte {index} to {x},{y}")
-
         try:
             color = encode_color(data[index])
             logging.debug(f"encoded byte {index} as {repr(color)}")
@@ -68,4 +67,63 @@ def create_video_frame(block_count: tuple[int, int],
             break
     
     return image
+
+
+#####
+
+
+def _determine_correct_color(block: Image.Image) -> tuple[int, int, int]:
+
+    def sum_color(acc, val):
+        ar, ag, ab = acc
+        vr, vg, vb = val
+
+        return (ar+vr, ag+vg, ab+vb)
+
+    block_data: list[tuple[int, int, int]] = block.getdata()
+    logging.debug(f"list = {repr(list((block_data)))}")
+    cr, cg, cb = f.reduce(sum_color, block_data, (0, 0, 0))
+
+    return (cr // len(block_data),
+            cg // len(block_data),
+            cb // len(block_data))
     
+    
+def decode_block_value(color: tuple[int, int, int]) -> int:
+    r, g, b = color
+    
+    vr = int(r // 36) & 0x7
+    vg = int(g // 85) & 0x3
+    vb = int(b // 36) & 0x7
+
+    return vb | (vg << 3) | (vr << 5)
+
+
+def decode_video_frame(block_count: tuple[int, int],
+                       block_size: tuple[int, int],
+                       byte_count: int,
+                       image: Image.Image) -> bytes:
+    bhoriz, bvert = block_count
+    bw, bh = block_size
+
+    logging.info("decoding frame")
+    logging.debug(f"bhoriz={bhoriz}, bvert={bvert}")
+    logging.debug(f"bw={bw}, bh={bh}")
+
+    ret = []
+    
+    for (i, (x, y)) in _generate_frame_filling_list(bhoriz, bvert):
+        if i >= byte_count:
+            break
+        
+        block = image.crop((x * bw, y * bh, (x+1)*bw, (y+1)*bh))
+
+        color = _determine_correct_color(block)
+        value = decode_block_value(color)
+        logging.debug(f"decoded color for index {i} as {repr(color)} -> {value}")
+        ret.append(value)
+
+    result = bytes(ret)
+    logging.info(f"decoded frame into {repr(result)}")
+    
+    return result
