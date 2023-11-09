@@ -25,14 +25,14 @@ def encode(data: BytesIO | None, output):
 
     frame.save(output)
 
-def decode(input, msglen: int) -> str:
+def decode(input) -> str:
     with Image.open(input) as im:
         block_count = calculate_block_count(VIDEO_WIDTH, VIDEO_HEIGHT,
                                             BLOCK_WIDTH, BLOCK_HEIGHT)
         data = decode_video_frame(block_count,
                                   (BLOCK_WIDTH, BLOCK_HEIGHT),
-                                  msglen,
                                   im)
+        print(repr(data))
         return data.decode("utf-8")
 
 def main():
@@ -42,7 +42,7 @@ def main():
         prog='data2video',
         description="""Decodes and encodes binary data in a series of video frames.
         Useful for 'backing up' some data in a platform that only accepts video,
-like a private Youtube video """,
+        like a private Youtube video """,
         epilog="(currently only a single image is supported)"
     )
 
@@ -65,7 +65,7 @@ like a private Youtube video """,
         print(repr(message))
         encode(input_file, args.output)
     elif args.decode:
-        decoded = decode(args.input, len(message))
+        decoded = decode(args.input)
         print(decoded)
 
 

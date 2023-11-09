@@ -3,6 +3,7 @@ from typing import BinaryIO
 import logging
 import functools as f
 
+import struct as s
 import numpy as np
 
 def encode_color(value: int) -> tuple[int, int, int]:
@@ -37,6 +38,12 @@ def initialize_image_from_frame(frame_width: int, frame_height: int):
 def _generate_frame_filling_list(width: int, height: int):
     return enumerate(((x,y) for y in range(0, height) for x in range(0, width)))
 
+LENGTH_SIZE = 4
+METADATA_SIZE = LENGTH_SIZE
+
+def encode_message_length(message: bytes) -> bytes:
+    return s.pack("I", len(message))
+
 
 def create_video_frame(block_count: tuple[int, int],
                        block_size: tuple[int, int],
@@ -46,16 +53,22 @@ def create_video_frame(block_count: tuple[int, int],
     bhoriz, bvert = block_count
     bw, bh = block_size
 
-    logging.debug(f"bhoriz={bhoriz}, bvert={bvert}")
-    logging.debug(f"bw={bw}, bh={bh}")
     logging.info(f"reading {bw*bh} bytes for this frame")
-    data = stream.read(bhoriz * bvert)
+    logging.info(f"bhoriz={bhoriz}, bvert={bvert}")
+    logging.info(f"bw={bw}, bh={bh}")
 
+    data = stream.read(bhoriz * bvert - METADATA_SIZE)
+    metadata = encode_message_length(data)
+    
     logging.debug(f"data=[{repr(data)}]")
+    raw_data = metadata + data
 
     for (index, (x, y)) in _generate_frame_filling_list(bhoriz, bvert):
         try:
-            color = encode_color(data[index])
+            if index >= len(raw_data):
+                break
+            
+            color = encode_color(raw_data[index])
             logging.debug(f"encoded byte {index} as {repr(color)}")
             draw.rectangle([
                 x*bw,
@@ -65,7 +78,7 @@ def create_video_frame(block_count: tuple[int, int],
                 (y+1)*bh-1,            
             ], color)
         except IndexError:
-            logging.debug(f"no bytes left")
+            logging.error(f"Tried to encode a byte, but there are no bytes left (idx=){index})")
             break
     
     return image
@@ -80,7 +93,7 @@ def _determine_correct_color(block: Image.Image) -> tuple[int, int, int]:
     greens = np.array(block.getdata(1), dtype=np.int32)
     blues = np.array(block.getdata(2), dtype=np.int32)
     
-    logging.debug(f"list = {repr(reds)}, {repr(greens)}, {repr(blues)}")
+    #logging.debug(f"list = {repr(reds)}, {repr(greens)}, {repr(blues)}")
 
     rd = np.std(reds)
     gd = np.std(greens)
@@ -100,24 +113,32 @@ def decode_block_value(color: tuple[int, int, int]) -> int:
 
     return vb | (vg << 3) | (vr << 5)
 
+def decode_video_data(payload: bytes) -> bytes:
+    """
+    Decode video data (currently only trim it to the correct length.)
+    """
+    metadata = payload[:METADATA_SIZE]
+    data = payload[METADATA_SIZE:]
+    
+    (length,) = s.unpack("I", metadata)
+    
+    return data[:length]
+    
+
 
 def decode_video_frame(block_count: tuple[int, int],
                        block_size: tuple[int, int],
-                       byte_count: int,
                        image: Image.Image) -> bytes:
     bhoriz, bvert = block_count
     bw, bh = block_size
 
     logging.info("decoding frame")
-    logging.debug(f"bhoriz={bhoriz}, bvert={bvert}")
-    logging.debug(f"bw={bw}, bh={bh}")
+    logging.info(f"bhoriz={bhoriz}, bvert={bvert}")
+    logging.info(f"bw={bw}, bh={bh}")
 
     ret = []
     
-    for (i, (x, y)) in _generate_frame_filling_list(bhoriz, bvert):
-        if i >= byte_count:
-            break
-        
+    for (i, (x, y)) in _generate_frame_filling_list(bhoriz, bvert):        
         block = image.crop((x * bw, y * bh, (x+1)*bw, (y+1)*bh))
 
         color = _determine_correct_color(block)
@@ -125,7 +146,9 @@ def decode_video_frame(block_count: tuple[int, int],
         logging.debug(f"decoded color for index {i} as {repr(color)} -> {value}")
         ret.append(value)
 
-    result = bytes(ret)
+    logging.debug(f"payload is {repr(bytes(ret))}")
+        
+    result = decode_video_data(bytes(ret))
     logging.info(f"decoded frame into {repr(result)}")
     
     return result
