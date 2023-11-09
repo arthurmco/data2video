@@ -3,6 +3,8 @@ from typing import BinaryIO
 import logging
 import functools as f
 
+import numpy as np
+
 def encode_color(value: int) -> tuple[int, int, int]:
     """
     Encode color in this format:
@@ -74,19 +76,19 @@ def create_video_frame(block_count: tuple[int, int],
 
 def _determine_correct_color(block: Image.Image) -> tuple[int, int, int]:
 
-    def sum_color(acc, val):
-        ar, ag, ab = acc
-        vr, vg, vb = val
+    reds = np.array(block.getdata(0), dtype=np.int32)
+    greens = np.array(block.getdata(1), dtype=np.int32)
+    blues = np.array(block.getdata(2), dtype=np.int32)
+    
+    logging.debug(f"list = {repr(reds)}, {repr(greens)}, {repr(blues)}")
 
-        return (ar+vr, ag+vg, ab+vb)
-
-    block_data: list[tuple[int, int, int]] = block.getdata()
-    logging.debug(f"list = {repr(list((block_data)))}")
-    cr, cg, cb = f.reduce(sum_color, block_data, (0, 0, 0))
-
-    return (cr // len(block_data),
-            cg // len(block_data),
-            cb // len(block_data))
+    rd = np.std(reds)
+    gd = np.std(greens)
+    bd = np.std(blues)
+    
+    return (np.median(reds) + rd,
+            np.median(greens) + gd,
+            np.median(blues) + bd)
     
     
 def decode_block_value(color: tuple[int, int, int]) -> int:

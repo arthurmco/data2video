@@ -36,12 +36,14 @@ def main():
     logging.basicConfig(level=logging.DEBUG)
     
     message = "Hello world! I would like to be seem from the thumbnail, please."
-    encode(message, "helloworld.png")
-    decoded = decode("helloworld.png", len(message.encode("utf-8")))
+    encode(message, "helloworld.jpg")
+    decoded = decode("helloworld.jpg", len(message.encode("utf-8")))
 
     print("\n")
     print(f"Encoded: '{message}'")
     print(f"Decoded: '{decoded}'")
+
+    print(repr(message == decoded))
 
     
 
