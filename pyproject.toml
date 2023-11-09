@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "data2video"
+version = "0.1.0"
+description = "encodes data in video frames"
+authors = ["Arthur Mendes <arthurmco@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pillow = "^10.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+data2video = "data2video.run:main"
