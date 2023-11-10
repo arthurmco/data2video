@@ -25,7 +25,7 @@ def encode(data: BytesIO | None, output):
 
     frame.save(output)
 
-def decode(input) -> str:
+def decode(input) -> bytes:
     with Image.open(input) as im:
         block_count = calculate_block_count(VIDEO_WIDTH, VIDEO_HEIGHT,
                                             BLOCK_WIDTH, BLOCK_HEIGHT)
@@ -33,10 +33,10 @@ def decode(input) -> str:
                                   (BLOCK_WIDTH, BLOCK_HEIGHT),
                                   im)
         print(repr(data))
-        return data.decode("utf-8")
+        return data
 
 def main():
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser(
         prog='data2video',
@@ -54,20 +54,30 @@ def main():
                         "If encoding, the binary file; if decoding, the image.\n" + \
                         "Pass '-' to get it from stdin", required=True)
     parser.add_argument("--output", help="The output of the operation. " + \
-                        "If encoding, the image; if decoding, the result file")
+                        "If encoding, the image; if decoding, the result file",
+                        required=True)
 
     args = parser.parse_args()
-    message = \
-        "Hello world! I would like to be seem from the thumbnail, please.".encode("utf-8")
-    input_file = BytesIO(message)
-
+    
+    if args.input == '-':
+        print("opening stdin")
+        input_file = None
+    else:
+        print(f"opening {args.input}")
+        input_file = open(args.input, "rb")
+        
     if args.encode:
-        print(repr(message))
         encode(input_file, args.output)
     elif args.decode:
         decoded = decode(args.input)
-        print(decoded)
+        with open(args.output, "wb") as out:
+            out.write(decoded)
+        
+        print(decoded.decode("utf-8"))
 
+    if input_file is not None:
+        input_file.close()
+    
 
 
 

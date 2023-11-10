@@ -6,6 +6,9 @@ import functools as f
 import struct as s
 import numpy as np
 
+from data2video.ecc import get_ecc_data_symbol_count, get_ecc_metadata_symbol_count, \
+    ecc_encode_data, ecc_encode_metadata, ecc_decode_data, ecc_decode_metadata
+
 def encode_color(value: int) -> tuple[int, int, int]:
     """
     Encode color in this format:
@@ -39,7 +42,7 @@ def _generate_frame_filling_list(width: int, height: int):
     return enumerate(((x,y) for y in range(0, height) for x in range(0, width)))
 
 LENGTH_SIZE = 4
-METADATA_SIZE = LENGTH_SIZE
+METADATA_SIZE = LENGTH_SIZE + get_ecc_metadata_symbol_count()
 
 def encode_message_length(message: bytes) -> bytes:
     return s.pack("I", len(message))
@@ -53,16 +56,18 @@ def create_video_frame(block_count: tuple[int, int],
     bhoriz, bvert = block_count
     bw, bh = block_size
 
-    logging.info(f"reading {bw*bh} bytes for this frame")
+    logging.info(f"reading {bhoriz*bvert} bytes for this frame")
     logging.info(f"bhoriz={bhoriz}, bvert={bvert}")
     logging.info(f"bw={bw}, bh={bh}")
 
     data = stream.read(bhoriz * bvert - METADATA_SIZE)
-    metadata = encode_message_length(data)
+    metadata = ecc_encode_metadata(encode_message_length(data))
     
     logging.debug(f"data=[{repr(data)}]")
     raw_data = metadata + data
 
+    logging.info(f"{len(data)} bytes of data read (+ {len(metadata)} bytes of metadata)")
+    
     for (index, (x, y)) in _generate_frame_filling_list(bhoriz, bvert):
         try:
             if index >= len(raw_data):
@@ -120,7 +125,8 @@ def decode_video_data(payload: bytes) -> bytes:
     metadata = payload[:METADATA_SIZE]
     data = payload[METADATA_SIZE:]
     
-    (length,) = s.unpack("I", metadata)
+    (length,) = s.unpack("I", ecc_decode_metadata(metadata))
+    logging.info(f"frame length is {length} bytes")
     
     return data[:length]
     
@@ -132,7 +138,7 @@ def decode_video_frame(block_count: tuple[int, int],
     bhoriz, bvert = block_count
     bw, bh = block_size
 
-    logging.info("decoding frame")
+    logging.info(f"decoding {bhoriz*bvert} bytes for this frame")
     logging.info(f"bhoriz={bhoriz}, bvert={bvert}")
     logging.info(f"bw={bw}, bh={bh}")
 

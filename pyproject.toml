@@ -9,6 +9,7 @@ readme = "README.md"
 python = ">=3.10,<3.13"
 pillow = "^10.1.0"
 numpy = "^1.26.1"
+reedsolo = "^1.7.0"
 
 [build-system]
 requires = ["poetry-core"]

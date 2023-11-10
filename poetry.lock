@@ -108,7 +108,18 @@ files = [
 docs = ["furo", "olefile", "sphinx (>=2.4)", "sphinx-copybutton", "sphinx-inline-tabs", "sphinx-removed-in", "sphinxext-opengraph"]
 tests = ["check-manifest", "coverage", "defusedxml", "markdown2", "olefile", "packaging", "pyroma", "pytest", "pytest-cov", "pytest-timeout"]
 
+[[package]]
+name = "reedsolo"
+version = "1.7.0"
+description = "Pure-Python Reed Solomon encoder/decoder"
+optional = false
+python-versions = "*"
+files = [
+    {file = "reedsolo-1.7.0-py3-none-any.whl", hash = "sha256:2b6a3e402a1ee3e1eea3f932f81e6c0b7bbc615588074dca1dbbcdeb055002bd"},
+    {file = "reedsolo-1.7.0.tar.gz", hash = "sha256:c1359f02742751afe0f1c0de9f0772cc113835aa2855d2db420ea24393c87732"},
+]
+
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "31cf16bd89515be2a68ab4358b48af6afc31c4a93ac085f622934a02b7c39be8"
+content-hash = "f4f51f04735d7c043a4e1c9cc804bafa505dd15a21efd3081cef544cd99acb5b"
