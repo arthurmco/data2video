@@ -142,12 +142,16 @@ def decode_video_data(payload: bytes) -> bytes:
     
 
 
-def decode_video_frame(block_count: tuple[int, int],
-                       block_size: tuple[int, int],
+def decode_video_frame(block_size: tuple[int, int],
                        image: Image.Image) -> bytes:
-    bhoriz, bvert = block_count
-    bw, bh = block_size
 
+    bw, bh = block_size
+    iwidth, iheight = image.size
+    block_count = calculate_block_count(iwidth, iheight,
+                                        bw, bh)    
+    bhoriz, bvert = block_count
+
+    logging.info(f"frame size is {iwidth}x{iheight}")
     logging.info(f"decoding {bhoriz*bvert} bytes for this frame")
     logging.info(f"bhoriz={bhoriz}, bvert={bvert}")
     logging.info(f"bw={bw}, bh={bh}")

@@ -6,18 +6,20 @@ from PIL import Image
 import argparse
 import sys
 
-VIDEO_WIDTH = 1920
-VIDEO_HEIGHT = 1080
+DEFAULT_VIDEO_WIDTH = 1920
+DEFAULT_VIDEO_HEIGHT = 1080
+
 BLOCK_HEIGHT = 16
 BLOCK_WIDTH = 16
 
-def encode(data: BytesIO | None, output):
+def encode(data: BytesIO | None, video_width: int,
+           video_height: int, output):
     if data is None:
         data = sys.stdin.buffer
 
-    block_count = calculate_block_count(VIDEO_WIDTH, VIDEO_HEIGHT,
+    block_count = calculate_block_count(video_width, video_height,
                                         BLOCK_WIDTH, BLOCK_HEIGHT)
-    frame = initialize_image_from_frame(VIDEO_WIDTH, VIDEO_HEIGHT)
+    frame = initialize_image_from_frame(video_width, video_height)
     frame = create_video_frame(block_count,
                                (BLOCK_WIDTH, BLOCK_HEIGHT),
                                frame,
@@ -27,12 +29,8 @@ def encode(data: BytesIO | None, output):
 
 def decode(input) -> bytes:
     with Image.open(input) as im:
-        block_count = calculate_block_count(VIDEO_WIDTH, VIDEO_HEIGHT,
-                                            BLOCK_WIDTH, BLOCK_HEIGHT)
-        data = decode_video_frame(block_count,
-                                  (BLOCK_WIDTH, BLOCK_HEIGHT),
+        data = decode_video_frame((BLOCK_WIDTH, BLOCK_HEIGHT),
                                   im)
-        print(repr(data))
         return data
 
 def main():
@@ -53,6 +51,10 @@ def main():
     parser.add_argument("--input", help="The input of the operation. " + \
                         "If encoding, the binary file; if decoding, the image.\n" + \
                         "Pass '-' to get it from stdin", required=True)
+    parser.add_argument("--width", help="The width of the output image (encode only)",
+                        default=DEFAULT_VIDEO_WIDTH, type=int)
+    parser.add_argument("--height", help="The height of the output image (encode only)",
+                        default=DEFAULT_VIDEO_HEIGHT, type=int)
     parser.add_argument("--output", help="The output of the operation. " + \
                         "If encoding, the image; if decoding, the result file",
                         required=True)
@@ -67,13 +69,13 @@ def main():
         input_file = open(args.input, "rb")
         
     if args.encode:
-        encode(input_file, args.output)
+        encode(input_file, args.width, args.height, args.output)
     elif args.decode:
         decoded = decode(args.input)
         with open(args.output, "wb") as out:
             out.write(decoded)
         
-        print(decoded.decode("utf-8"))
+        #print(decoded.decode("utf-8"))
 
     if input_file is not None:
         input_file.close()
