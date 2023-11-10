@@ -60,13 +60,23 @@ def create_video_frame(block_count: tuple[int, int],
     logging.info(f"bhoriz={bhoriz}, bvert={bvert}")
     logging.info(f"bw={bw}, bh={bh}")
 
-    data = stream.read(bhoriz * bvert - METADATA_SIZE)
-    metadata = ecc_encode_metadata(encode_message_length(data))
+    ecc_size = get_ecc_data_symbol_count(bw, bh)
+    logging.info(f"ecc data is {ecc_size} bytes")
+    
+    data = stream.read(bhoriz * bvert - METADATA_SIZE - ecc_size)
+    
     
     logging.debug(f"data=[{repr(data)}]")
+    logging.info(f"{len(data)} bytes of data read")
+    
+    data = ecc_encode_data(bw, bh, data)    
+    metadata = ecc_encode_metadata(encode_message_length(data))
+
+    logging.debug(f"data with ecc=[{repr(data)}]")
+
     raw_data = metadata + data
 
-    logging.info(f"{len(data)} bytes of data read (+ {len(metadata)} bytes of metadata)")
+    logging.info(f"{len(raw_data)} bytes of raw data")
     
     for (index, (x, y)) in _generate_frame_filling_list(bhoriz, bvert):
         try:
@@ -127,7 +137,7 @@ def decode_video_data(payload: bytes) -> bytes:
     
     (length,) = s.unpack("I", ecc_decode_metadata(metadata))
     logging.info(f"frame length is {length} bytes")
-    
+
     return data[:length]
     
 
@@ -154,7 +164,8 @@ def decode_video_frame(block_count: tuple[int, int],
 
     logging.debug(f"payload is {repr(bytes(ret))}")
         
-    result = decode_video_data(bytes(ret))
-    logging.info(f"decoded frame into {repr(result)}")
+    result = ecc_decode_data(bw, bh, decode_video_data(bytes(ret)))    
+    
+    logging.debug(f"decoded frame into {repr(result)}")
     
     return result
