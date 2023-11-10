@@ -2,6 +2,7 @@ from PIL import ImageDraw, Image
 from typing import BinaryIO
 import logging
 import functools as f
+import math as m
 
 import struct as s
 import numpy as np
@@ -57,26 +58,28 @@ def create_video_frame(block_count: tuple[int, int],
     bw, bh = block_size
 
     logging.info(f"reading {bhoriz*bvert} bytes for this frame")
-    logging.info(f"bhoriz={bhoriz}, bvert={bvert}")
-    logging.info(f"bw={bw}, bh={bh}")
+    logging.debug(f"bhoriz={bhoriz}, bvert={bvert}")
+    logging.debug(f"bw={bw}, bh={bh}")
 
-    ecc_size = get_ecc_data_symbol_count(bw, bh)
+    ecc_size = get_ecc_data_symbol_count(bhoriz, bvert) * m.ceil(bhoriz*bvert/256)
     logging.info(f"ecc data is {ecc_size} bytes")
     
-    data = stream.read(bhoriz * bvert - METADATA_SIZE - ecc_size)
-    
+    data = stream.read((bhoriz * bvert) - METADATA_SIZE - int(ecc_size))
+    if len(data) == 0:
+        logging.info("no more data to read")
+        raise EOFError
     
     logging.debug(f"data=[{repr(data)}]")
     logging.info(f"{len(data)} bytes of data read")
     
-    data = ecc_encode_data(bw, bh, data)    
+    data = ecc_encode_data(bhoriz, bvert, data)    
     metadata = ecc_encode_metadata(encode_message_length(data))
 
     logging.debug(f"data with ecc=[{repr(data)}]")
 
     raw_data = metadata + data
 
-    logging.info(f"{len(raw_data)} bytes of raw data")
+    logging.info(f"writing {len(raw_data)} bytes of raw data (of {bhoriz*bvert} available for this frame")
     
     for (index, (x, y)) in _generate_frame_filling_list(bhoriz, bvert):
         try:
